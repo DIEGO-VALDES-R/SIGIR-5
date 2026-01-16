@@ -1,300 +1,194 @@
-import {
-  int,
-  mysqlEnum,
-  mysqlTable,
-  text,
-  timestamp,
-  varchar,
-  decimal,
-  boolean,
-  datetime,
-  unique,
-} from "drizzle-orm/mysql-core";
+import { pgTable, varchar, integer, timestamp, text, numeric, boolean, serial } from 'drizzle-orm/pg-core';
+import { createId } from '@paralleldrive/cuid2';
 
-/**
- * Core user table backing auth flow with role-based access control
- */
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+// ===================================
+// USUARIOS
+// ===================================
+export const users = pgTable('users', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  username: varchar('username', { length: 255 }).notNull().unique(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  password: varchar('password', { length: 255 }).notNull(),
+  firstName: varchar('first_name', { length: 255 }),
+  lastName: varchar('last_name', { length: 255 }),
+  role: varchar('role', { length: 50 }).notNull().default('user'),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
-
-/**
- * Categorías de productos
- */
-export const categories = mysqlTable("categories", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+// ===================================
+// CATEGORÍAS
+// ===================================
+export const categories = pgTable('categories', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  parentId: varchar('parent_id', { length: 128 }), // Para categorías jerárquicas
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-export type Category = typeof categories.$inferSelect;
-export type InsertCategory = typeof categories.$inferInsert;
-
-/**
- * Bodegas/almacenes
- */
-export const warehouses = mysqlTable("warehouses", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  location: text("location"),
-  capacity: int("capacity"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+// ===================================
+// UBICACIONES/BODEGAS
+// ===================================
+export const locations = pgTable('locations', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  name: varchar('name', { length: 255 }).notNull(),
+  code: varchar('code', { length: 50 }).notNull().unique(),
+  address: text('address'),
+  responsible: varchar('responsible', { length: 255 }),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-export type Warehouse = typeof warehouses.$inferSelect;
-export type InsertWarehouse = typeof warehouses.$inferInsert;
-
-/**
- * Ubicaciones dentro de bodegas (estantes, pasillos, etc.)
- */
-export const locations = mysqlTable("locations", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  warehouseId: varchar("warehouseId", { length: 36 }).notNull(),
-  code: varchar("code", { length: 100 }).notNull(),
-  aisle: varchar("aisle", { length: 50 }),
-  shelf: varchar("shelf", { length: 50 }),
-  bin: varchar("bin", { length: 50 }),
-  description: text("description"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+// ===================================
+// ITEMS DEL INVENTARIO
+// ===================================
+export const items = pgTable('items', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  code: varchar('code', { length: 100 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  categoryId: varchar('category_id', { length: 128 }).notNull(),
+  
+  // Stock
+  stock: integer('stock').notNull().default(0),
+  minStock: integer('min_stock').notNull().default(0),
+  maxStock: integer('max_stock'),
+  
+  // Precios
+  unitPrice: numeric('unit_price', { precision: 10, scale: 2 }),
+  totalValue: numeric('total_value', { precision: 12, scale: 2 }),
+  
+  // Ubicación
+  locationId: varchar('location_id', { length: 128 }),
+  shelf: varchar('shelf', { length: 100 }), // Estante/Pasillo
+  
+  // Imágenes
+  imageUrl: text('image_url'),
+  
+  // Información adicional
+  barcode: varchar('barcode', { length: 255 }),
+  sku: varchar('sku', { length: 255 }),
+  brand: varchar('brand', { length: 255 }),
+  model: varchar('model', { length: 255 }),
+  serialNumber: varchar('serial_number', { length: 255 }),
+  
+  // Estado
+  status: varchar('status', { length: 50 }).notNull().default('active'), // active, inactive, discontinued
+  condition: varchar('condition', { length: 50 }), // new, used, refurbished, damaged
+  
+  // Metadatos
+  tags: text('tags'), // JSON string array
+  notes: text('notes'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-export type Location = typeof locations.$inferSelect;
-export type InsertLocation = typeof locations.$inferInsert;
-
-/**
- * Proveedores
- */
-export const suppliers = mysqlTable("suppliers", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  contactPerson: varchar("contactPerson", { length: 255 }),
-  email: varchar("email", { length: 320 }),
-  phone: varchar("phone", { length: 20 }),
-  address: text("address"),
-  city: varchar("city", { length: 100 }),
-  country: varchar("country", { length: 100 }),
-  paymentTerms: varchar("paymentTerms", { length: 255 }),
-  notes: text("notes"),
-  isActive: boolean("isActive").default(true).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+// ===================================
+// MOVIMIENTOS DE INVENTARIO
+// ===================================
+export const movements = pgTable('movements', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  itemId: varchar('item_id', { length: 128 }).notNull(),
+  userId: varchar('user_id', { length: 128 }).notNull(),
+  
+  type: varchar('type', { length: 50 }).notNull(), // entrada, salida, ajuste, transferencia
+  quantity: integer('quantity').notNull(),
+  
+  // Stock tracking
+  previousStock: integer('previous_stock').notNull(),
+  newStock: integer('new_stock').notNull(),
+  
+  // Origen/Destino (para transferencias)
+  fromLocationId: varchar('from_location_id', { length: 128 }),
+  toLocationId: varchar('to_location_id', { length: 128 }),
+  
+  // Información adicional
+  reason: text('reason'),
+  notes: text('notes'),
+  documentNumber: varchar('document_number', { length: 255 }), // Factura, orden, etc.
+  
+  // Proveedor/Cliente (opcional)
+  supplierId: varchar('supplier_id', { length: 128 }),
+  customerId: varchar('customer_id', { length: 128 }),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-export type Supplier = typeof suppliers.$inferSelect;
-export type InsertSupplier = typeof suppliers.$inferInsert;
-
-/**
- * Productos
- */
-export const products = mysqlTable(
-  "products",
-  {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    code: varchar("code", { length: 100 }).notNull().unique(),
-    barcode: varchar("barcode", { length: 100 }),
-    qrCode: varchar("qrCode", { length: 255 }),
-    name: varchar("name", { length: 255 }).notNull(),
-    description: text("description"),
-    categoryId: varchar("categoryId", { length: 36 }).notNull(),
-    supplierId: varchar("supplierId", { length: 36 }),
-    unit: varchar("unit", { length: 50 }).notNull(),
-    price: decimal("price", { precision: 12, scale: 2 }).notNull(),
-    cost: decimal("cost", { precision: 12, scale: 2 }),
-    stock: int("stock").notNull().default(0),
-    minStock: int("minStock").notNull().default(10),
-    maxStock: int("maxStock").notNull().default(100),
-    reorderQuantity: int("reorderQuantity").notNull().default(50),
-    expirationDate: datetime("expirationDate"),
-    status: mysqlEnum("status", ["active", "discontinued", "inactive"])
-      .default("active")
-      .notNull(),
-    locationId: varchar("locationId", { length: 36 }),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  },
-  (table) => ({
-    codeIdx: unique("code_idx").on(table.code),
-    barcodeIdx: unique("barcode_idx").on(table.barcode),
-  })
-);
-
-export type Product = typeof products.$inferSelect;
-export type InsertProduct = typeof products.$inferInsert;
-
-/**
- * Tipos de transacciones
- */
-export enum TransactionTypeEnum {
-  ENTRY = "entry",
-  EXIT = "exit",
-  ADJUSTMENT = "adjustment",
-  RETURN = "return",
-  WRITE_OFF = "write_off",
-}
-
-/**
- * Transacciones/Movimientos de inventario (Kardex)
- */
-export const transactions = mysqlTable("transactions", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  productId: varchar("productId", { length: 36 }).notNull(),
-  type: mysqlEnum("type", [
-    "entry",
-    "exit",
-    "adjustment",
-    "return",
-    "write_off",
-  ]).notNull(),
-  quantity: int("quantity").notNull(),
-  referenceNumber: varchar("referenceNumber", { length: 100 }),
-  reason: text("reason"),
-  notes: text("notes"),
-  userId: int("userId").notNull(),
-  purchaseOrderId: varchar("purchaseOrderId", { length: 36 }),
-  previousStock: int("previousStock").notNull(),
-  resultingStock: int("resultingStock").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
+// ===================================
+// PROVEEDORES
+// ===================================
+export const suppliers = pgTable('suppliers', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  name: varchar('name', { length: 255 }).notNull(),
+  code: varchar('code', { length: 100 }).unique(),
+  
+  // Contacto
+  contactName: varchar('contact_name', { length: 255 }),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 50 }),
+  mobile: varchar('mobile', { length: 50 }),
+  
+  // Dirección
+  address: text('address'),
+  city: varchar('city', { length: 255 }),
+  country: varchar('country', { length: 255 }),
+  
+  // Información fiscal
+  taxId: varchar('tax_id', { length: 100 }),
+  
+  // Estado
+  active: boolean('active').notNull().default(true),
+  rating: integer('rating'), // 1-5
+  
+  notes: text('notes'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-export type Transaction = typeof transactions.$inferSelect;
-export type InsertTransaction = typeof transactions.$inferInsert;
-
-/**
- * Estados de órdenes de compra
- */
-export enum PurchaseOrderStatusEnum {
-  DRAFT = "draft",
-  PENDING = "pending",
-  CONFIRMED = "confirmed",
-  RECEIVED = "received",
-  CANCELLED = "cancelled",
-}
-
-/**
- * Órdenes de compra
- */
-export const purchaseOrders = mysqlTable("purchaseOrders", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  orderNumber: varchar("orderNumber", { length: 100 }).notNull().unique(),
-  supplierId: varchar("supplierId", { length: 36 }).notNull(),
-  status: mysqlEnum("status", [
-    "draft",
-    "pending",
-    "confirmed",
-    "received",
-    "cancelled",
-  ])
-    .default("draft")
-    .notNull(),
-  totalAmount: decimal("totalAmount", { precision: 12, scale: 2 }).notNull(),
-  expectedDeliveryDate: datetime("expectedDeliveryDate"),
-  receivedDate: datetime("receivedDate"),
-  notes: text("notes"),
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+// ===================================
+// ÓRDENES DE COMPRA (Opcional)
+// ===================================
+export const purchaseOrders = pgTable('purchase_orders', {
+  id: varchar('id', { length: 128 }).primaryKey().$defaultFn(() => createId()),
+  orderNumber: varchar('order_number', { length: 100 }).notNull().unique(),
+  supplierId: varchar('supplier_id', { length: 128 }).notNull(),
+  userId: varchar('user_id', { length: 128 }).notNull(),
+  
+  status: varchar('status', { length: 50 }).notNull().default('pending'), // pending, approved, received, cancelled
+  
+  totalAmount: numeric('total_amount', { precision: 12, scale: 2 }),
+  
+  orderDate: timestamp('order_date').notNull().defaultNow(),
+  expectedDate: timestamp('expected_date'),
+  receivedDate: timestamp('received_date'),
+  
+  notes: text('notes'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
-export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
-
-/**
- * Detalles de órdenes de compra (líneas de la orden)
- */
-export const purchaseOrderItems = mysqlTable("purchaseOrderItems", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  purchaseOrderId: varchar("purchaseOrderId", { length: 36 }).notNull(),
-  productId: varchar("productId", { length: 36 }).notNull(),
-  quantity: int("quantity").notNull(),
-  unitPrice: decimal("unitPrice", { precision: 12, scale: 2 }).notNull(),
-  totalPrice: decimal("totalPrice", { precision: 12, scale: 2 }).notNull(),
-  receivedQuantity: int("receivedQuantity").default(0),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
+// ===================================
+// AUDITORÍA/LOGS (Opcional pero recomendado)
+// ===================================
+export const auditLogs = pgTable('audit_logs', {
+  id: serial('id').primaryKey(),
+  userId: varchar('user_id', { length: 128 }).notNull(),
+  action: varchar('action', { length: 100 }).notNull(), // create, update, delete
+  entityType: varchar('entity_type', { length: 100 }).notNull(), // item, movement, user, etc.
+  entityId: varchar('entity_id', { length: 128 }).notNull(),
+  
+  oldValue: text('old_value'), // JSON
+  newValue: text('new_value'), // JSON
+  
+  ipAddress: varchar('ip_address', { length: 50 }),
+  userAgent: text('user_agent'),
+  
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
-
-export type PurchaseOrderItem = typeof purchaseOrderItems.$inferSelect;
-export type InsertPurchaseOrderItem =
-  typeof purchaseOrderItems.$inferInsert;
-
-/**
- * Alertas del sistema
- */
-export enum AlertTypeEnum {
-  LOW_STOCK = "low_stock",
-  OUT_OF_STOCK = "out_of_stock",
-  EXPIRING_SOON = "expiring_soon",
-  EXPIRED = "expired",
-  PURCHASE_ORDER_PENDING = "purchase_order_pending",
-}
-
-export const alerts = mysqlTable("alerts", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  productId: varchar("productId", { length: 36 }).notNull(),
-  type: mysqlEnum("type", [
-    "low_stock",
-    "out_of_stock",
-    "expiring_soon",
-    "expired",
-    "purchase_order_pending",
-  ]).notNull(),
-  message: text("message").notNull(),
-  isResolved: boolean("isResolved").default(false).notNull(),
-  resolvedAt: timestamp("resolvedAt"),
-  resolvedBy: int("resolvedBy"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
-
-export type Alert = typeof alerts.$inferSelect;
-export type InsertAlert = typeof alerts.$inferInsert;
-
-/**
- * Historial de notificaciones enviadas
- */
-export const notificationLogs = mysqlTable("notificationLogs", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  alertId: varchar("alertId", { length: 36 }).notNull(),
-  recipientEmail: varchar("recipientEmail", { length: 320 }).notNull(),
-  subject: varchar("subject", { length: 255 }).notNull(),
-  status: mysqlEnum("status", ["sent", "failed", "pending"])
-    .default("pending")
-    .notNull(),
-  errorMessage: text("errorMessage"),
-  sentAt: timestamp("sentAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
-
-export type NotificationLog = typeof notificationLogs.$inferSelect;
-export type InsertNotificationLog = typeof notificationLogs.$inferInsert;
-
-/**
- * Análisis de demanda (predicciones)
- */
-export const demandForecasts = mysqlTable("demandForecasts", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  productId: varchar("productId", { length: 36 }).notNull(),
-  forecastedDemand: int("forecastedDemand").notNull(),
-  suggestedOrderQuantity: int("suggestedOrderQuantity").notNull(),
-  confidence: decimal("confidence", { precision: 5, scale: 2 }),
-  analysisData: text("analysisData"), // JSON con detalles del análisis
-  generatedAt: timestamp("generatedAt").defaultNow().notNull(),
-  validUntil: datetime("validUntil"),
-});
-
-export type DemandForecast = typeof demandForecasts.$inferSelect;
-export type InsertDemandForecast = typeof demandForecasts.$inferInsert;
