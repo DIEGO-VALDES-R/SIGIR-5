@@ -4,9 +4,6 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "client/dist",
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
