@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 export function useAuth() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState({ id: 1, name: 'Demo User' }); // Usuario demo
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
